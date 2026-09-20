@@ -109,6 +109,11 @@ def generate_all_overlays(
             "acne": cv2.COLORMAP_HOT,
             "hydration": cv2.COLORMAP_OCEAN,
             "pigment": cv2.COLORMAP_PINK,
+            "wrinkles": cv2.COLORMAP_MAGMA,
+            "dark_circles": cv2.COLORMAP_BONE,
+            "dark_spots": cv2.COLORMAP_PLASMA,
+            "dullness": cv2.COLORMAP_OCEAN,
+            "firmness_loss": cv2.COLORMAP_INFERNO,
         }
 
     overlays = {}

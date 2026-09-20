@@ -27,6 +27,7 @@ class ScanResponse(BaseModel):
     concern_tags: list[str] = Field(default_factory=list)
     detections: list[DetectionItem] = Field(default_factory=list)
     ml: dict = Field(default_factory=dict)
+    profile: dict = Field(default_factory=dict)
 
 
 class HealthResponse(BaseModel):
@@ -34,3 +35,5 @@ class HealthResponse(BaseModel):
 
     ok: bool
     ml_loaded: bool = False
+    vit_loaded: bool = False
+    models: list[str] = Field(default_factory=list)

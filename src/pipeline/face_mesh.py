@@ -141,4 +141,13 @@ def make_region_masks(landmarks: np.ndarray, img_shape: tuple) -> dict[str, np.n
         del masks["left_cheek"]
         del masks["right_cheek"]
 
+    under_eye_idx = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7,
+                     362, 398, 384, 385, 386, 387, 388, 466, 263, 249, 390, 373, 374, 380, 381, 382]
+    under = create_mask_from_indices(under_eye_idx, (h, w))
+    if under.any():
+        under = cv2.dilate(under, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15)))
+        shift = np.zeros_like(under)
+        shift[8:, :] = under[:-8, :]
+        masks["under_eyes"] = shift
+
     return masks

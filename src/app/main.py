@@ -37,9 +37,21 @@ app.add_middleware(
 async def health():
     """Health check endpoint."""
     from ..ml.glowlytics import get_engine
+    from ..ml.vit_panel import get_vit_panel
 
     engine = get_engine()
-    return {"ok": True, "ml_loaded": engine.available}
+    panel = get_vit_panel()
+    models = []
+    if engine.available:
+        models.append("glowlytics")
+    if panel.available:
+        models.append("vit_panel")
+    return {
+        "ok": True,
+        "ml_loaded": engine.available,
+        "vit_loaded": panel.available,
+        "models": models,
+    }
 
 
 @app.post("/scan", response_model=ScanResponse)
@@ -104,8 +116,14 @@ except Exception as e:
 
 @app.on_event("startup")
 async def startup_event():
-    """Log startup."""
+    """Log startup and warm ML models."""
     logger.info(f"Starting Skin Scan API in {settings.env} mode")
+    from ..ml.glowlytics import get_engine
+    from ..ml.vit_panel import get_vit_panel
+
+    engine = get_engine()
+    panel = get_vit_panel()
+    logger.info("Models ready glowlytics=%s vit=%s", engine.available, panel.available)
 
 
 @app.on_event("shutdown")

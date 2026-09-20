@@ -42,15 +42,21 @@ class GlowlyticsEngine:
             return
 
         try:
+            opts = ort.SessionOptions()
+            opts.intra_op_num_threads = 8
+            opts.inter_op_num_threads = 4
+            providers = ["CPUExecutionProvider"]
             if SKIN_SIGNALS_PATH.exists():
                 self._signals = ort.InferenceSession(
                     str(SKIN_SIGNALS_PATH),
-                    providers=["CPUExecutionProvider"],
+                    sess_options=opts,
+                    providers=providers,
                 )
             if ACNE_DETECTOR_PATH.exists():
                 self._acne = ort.InferenceSession(
                     str(ACNE_DETECTOR_PATH),
-                    providers=["CPUExecutionProvider"],
+                    sess_options=opts,
+                    providers=providers,
                 )
             self._available = self._signals is not None or self._acne is not None
             logger.info(

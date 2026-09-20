@@ -9,6 +9,7 @@ const scoresContainer = document.getElementById('scores');
 const overlaysContainer = document.getElementById('overlays');
 const issuesContainer = document.getElementById('issues');
 const tagsContainer = document.getElementById('tags');
+const profileEl = document.getElementById('profile');
 
 let selectedFile = null;
 let originalImage = null;
@@ -80,6 +81,9 @@ scanBtn.addEventListener('click', async () => {
 });
 
 function displayResults(data) {
+    const profile = data.profile || {};
+    profileEl.textContent = `Skin type: ${(profile.skin_type || 'unknown')} · Models: ${(profile.models_used || []).join(', ') || 'cv-only'} · Top: ${(profile.top_issues || []).join(', ') || 'none'}`;
+
     issuesContainer.innerHTML = '';
     const issues = data.issues || [];
     if (issues.length === 0) {
