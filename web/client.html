@@ -108,6 +108,26 @@
             padding: 20px;
             color: #666;
         }
+        .issues { display: grid; gap: 12px; margin-bottom: 24px; }
+        .issue-card {
+            padding: 14px 16px;
+            border-radius: 6px;
+            background: #fff8f0;
+            border-left: 4px solid #e67e22;
+        }
+        .issue-card.high { border-left-color: #c0392b; background: #fdf2f2; }
+        .issue-card.medium { border-left-color: #e67e22; }
+        .issue-card.low { border-left-color: #27ae60; background: #f3faf6; }
+        .issue-card h4 { margin-bottom: 4px; }
+        .issue-card p { color: #555; font-size: 14px; }
+        .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+        .tag {
+            background: #eef2ff;
+            color: #3730a3;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -129,6 +149,12 @@
 
         <div id="results" class="results">
             <h2>Analysis Results</h2>
+
+            <h3>Priority Issues</h3>
+            <div id="issues" class="issues"></div>
+
+            <h3>Concern Tags (for product match)</h3>
+            <div id="tags" class="tags"></div>
 
             <h3>Scores</h3>
             <div id="scores" class="scores"></div>

@@ -106,6 +106,7 @@ def generate_all_overlays(
             "texture": cv2.COLORMAP_BONE,
             "pores": cv2.COLORMAP_COOL,
             "blemishes": cv2.COLORMAP_AUTUMN,
+            "acne": cv2.COLORMAP_HOT,
             "hydration": cv2.COLORMAP_OCEAN,
             "pigment": cv2.COLORMAP_PINK,
         }
@@ -116,3 +117,32 @@ def generate_all_overlays(
         overlays[name] = create_heatmap_overlay(map_data, colormap, alpha)
 
     return overlays
+
+
+def draw_detections(
+    img_bgr: np.ndarray,
+    detections: list,
+) -> np.ndarray:
+    out = img_bgr.copy()
+    colors = {
+        "comedone": (80, 180, 255),
+        "papule": (0, 140, 255),
+        "pustule": (0, 80, 255),
+        "nodule": (0, 0, 220),
+    }
+    for det in detections:
+        x1, y1, x2, y2 = [int(v) for v in det["box"]]
+        color = colors.get(det["label"], (0, 255, 255))
+        cv2.rectangle(out, (x1, y1), (x2, y2), color, 2)
+        label = f"{det['label']} {det['confidence']:.2f}"
+        cv2.putText(
+            out,
+            label,
+            (x1, max(16, y1 - 6)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.45,
+            color,
+            1,
+            cv2.LINE_AA,
+        )
+    return out

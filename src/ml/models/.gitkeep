@@ -1,2 +1,2 @@
-# ML models directory
-# Place trained models here (e.g., acne_cnn.pt)
+# Place trained models here (downloaded at Docker build)
+# skin_signals.onnx, acne_detector.onnx from HuggingFace glowlytics-skin-models

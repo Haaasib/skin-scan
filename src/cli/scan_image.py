@@ -49,16 +49,25 @@ def main():
             {
                 "scores": result["scores"],
                 "regions": result["regions"],
+                "issues": result.get("issues", []),
+                "concern_tags": result.get("concern_tags", []),
+                "detections": result.get("detections", []),
+                "ml": result.get("ml", {}),
             },
             f,
             indent=2,
         )
     print(f"Saved scores to: {scores_file}")
 
-    # Print scores
+    print("\nIssues:")
+    for issue in result.get("issues", []):
+        print(f"  [{issue['severity']}] {issue['label']}: {issue['summary']}")
+
+    print("\nConcern tags:", ", ".join(result.get("concern_tags", [])) or "(none)")
+
     print("\nScores:")
     for category, score in result["scores"].items():
-        print(f"  {category:12s}: {score:.2f}")
+        print(f"  {category:16s}: {score:.2f}")
 
     # Optionally save overlay images
     if args.save_overlays:

@@ -36,7 +36,10 @@ app.add_middleware(
 @app.get("/health", response_model=HealthResponse)
 async def health():
     """Health check endpoint."""
-    return {"ok": True}
+    from ..ml.glowlytics import get_engine
+
+    engine = get_engine()
+    return {"ok": True, "ml_loaded": engine.available}
 
 
 @app.post("/scan", response_model=ScanResponse)

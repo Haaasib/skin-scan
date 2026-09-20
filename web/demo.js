@@ -7,6 +7,8 @@ const error = document.getElementById('error');
 const results = document.getElementById('results');
 const scoresContainer = document.getElementById('scores');
 const overlaysContainer = document.getElementById('overlays');
+const issuesContainer = document.getElementById('issues');
+const tagsContainer = document.getElementById('tags');
 
 let selectedFile = null;
 let originalImage = null;
@@ -78,7 +80,30 @@ scanBtn.addEventListener('click', async () => {
 });
 
 function displayResults(data) {
-    // Display scores
+    issuesContainer.innerHTML = '';
+    const issues = data.issues || [];
+    if (issues.length === 0) {
+        issuesContainer.innerHTML = '<p>No major issues flagged.</p>';
+    } else {
+        for (const issue of issues) {
+            const card = document.createElement('div');
+            card.className = `issue-card ${issue.severity}`;
+            card.innerHTML = `
+                <h4>${issue.label} · ${issue.severity.toUpperCase()} · ${(issue.score * 100).toFixed(0)}%</h4>
+                <p>${issue.summary}</p>
+            `;
+            issuesContainer.appendChild(card);
+        }
+    }
+
+    tagsContainer.innerHTML = '';
+    for (const tag of (data.concern_tags || [])) {
+        const el = document.createElement('span');
+        el.className = 'tag';
+        el.textContent = tag;
+        tagsContainer.appendChild(el);
+    }
+
     scoresContainer.innerHTML = '';
     for (const [category, score] of Object.entries(data.scores)) {
         const card = document.createElement('div');
