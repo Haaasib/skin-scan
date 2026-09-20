@@ -2,24 +2,22 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for OpenCV and MediaPipe
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
-    libxrender-dev \
+    libxrender1 \
     libgomp1 \
-    libgthread-2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files
 COPY pyproject.toml ./
 
-# Install uv and dependencies
 RUN pip install --no-cache-dir uv && \
-    uv pip install --system -e .
+    uv pip install --system -e . && \
+    uv pip uninstall --system opencv-python opencv-contrib-python || true && \
+    uv pip install --system --reinstall opencv-python-headless
 
-# Copy application code
 COPY . .
 
 EXPOSE 8000
