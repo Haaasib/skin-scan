@@ -144,9 +144,12 @@
 
         <div class="upload-section">
             <h2>Upload Face Image</h2>
+            <label for="apiKeyInput" style="display:block;margin-bottom:6px;color:#555;">API Key</label>
+            <input type="password" id="apiKeyInput" placeholder="Enter API key" autocomplete="off"
+                style="width:min(420px,100%);padding:10px 12px;margin:0 auto 12px;display:block;border:1px solid #ccc;border-radius:4px;font-size:15px;">
             <input type="file" id="fileInput" accept="image/*">
             <br>
-            <button id="scanBtn">Scan Image</button>
+            <button id="scanBtn" disabled>Scan Image</button>
         </div>
 
         <div id="loading" class="loading" style="display:none;">

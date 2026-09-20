@@ -1,7 +1,8 @@
 """FastAPI application for skin scan analysis."""
 import logging
+import secrets
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import Depends, FastAPI, Header, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -11,19 +12,16 @@ from .schemas import ScanResponse, HealthResponse
 from .utils_io import read_image_bgr
 from ..pipeline.compose import run_scan
 
-# Setup
 settings = get_settings()
 setup_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
-# Create app
 app = FastAPI(
     title="Skin Scan OSS",
     description="Production-grade skin analysis API",
     version="0.1.0",
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -31,6 +29,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def require_api_key(
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    authorization: str | None = Header(default=None),
+) -> None:
+    expected = (settings.api_key or "").strip()
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="API_KEY is not configured on the server",
+        )
+    provided = (x_api_key or "").strip()
+    if not provided and authorization:
+        auth = authorization.strip()
+        if auth.lower().startswith("bearer "):
+            provided = auth[7:].strip()
+        else:
+            provided = auth
+    if not provided or not secrets.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -55,32 +74,24 @@ async def health():
 
 
 @app.post("/scan", response_model=ScanResponse)
-async def scan(image: UploadFile = File(...)):
-    """
-    Analyze uploaded facial image and return skin analysis results.
-
-    Returns:
-    - scores: Dict of category scores [0, 1]
-    - overlays: Dict of base64-encoded PNG heatmap overlays
-    - regions: List of detected facial regions
-    """
+async def scan(
+    image: UploadFile = File(...),
+    _: None = Depends(require_api_key),
+):
+    """Analyze uploaded facial image and return skin analysis results."""
     try:
-        # Read image
         image_data = await image.read()
         logger.info(f"Received image: {image.filename}, size: {len(image_data)} bytes")
 
-        # Check size
         if len(image_data) > settings.max_image_size * 1024 * 1024:
             raise HTTPException(
                 status_code=400,
-                detail=f"Image too large. Max size: {settings.max_image_size}MB"
+                detail=f"Image too large. Max size: {settings.max_image_size}MB",
             )
 
-        # Convert to BGR
         img_bgr = read_image_bgr(image_data)
         logger.info(f"Image shape: {img_bgr.shape}")
 
-        # Run scan pipeline
         result = run_scan(img_bgr)
         logger.info(f"Scan complete. Scores: {result['scores']}")
 
@@ -89,6 +100,9 @@ async def scan(image: UploadFile = File(...)):
     except ValueError as e:
         logger.error(f"Scan error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+    except HTTPException:
+        raise
 
     except Exception as e:
         logger.exception(f"Unexpected error during scan: {e}")
@@ -105,7 +119,6 @@ async def root():
     return {"message": "Skin Scan API is running. Visit /docs for API documentation."}
 
 
-# Mount static files for web UI
 try:
     web_dir = Path(__file__).parent.parent.parent / "web"
     if web_dir.exists():
@@ -118,6 +131,8 @@ except Exception as e:
 async def startup_event():
     """Log startup and warm ML models."""
     logger.info(f"Starting Skin Scan API in {settings.env} mode")
+    if not (settings.api_key or "").strip():
+        logger.warning("API_KEY is empty — /scan will reject all requests")
     from ..ml.glowlytics import get_engine
     from ..ml.vit_panel import get_vit_panel
 

@@ -11,7 +11,8 @@ class Settings(BaseSettings):
 
     env: str = "dev"
     log_level: str = "INFO"
-    max_image_size: int = 2048  # Max image size in KB
+    max_image_size: int = 2048
+    api_key: str = ""
 
 
 @lru_cache
