@@ -16,7 +16,7 @@ COPY pyproject.toml ./
 RUN pip install --no-cache-dir uv && \
     uv pip install --system -e . && \
     uv pip uninstall --system opencv-python opencv-contrib-python || true && \
-    uv pip install --system --reinstall opencv-python-headless
+    uv pip install --system --reinstall "opencv-python-headless" "mediapipe==0.10.21"
 
 COPY . .
 
