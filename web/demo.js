@@ -11,6 +11,7 @@ const overlaysContainer = document.getElementById('overlays');
 const issuesContainer = document.getElementById('issues');
 const tagsContainer = document.getElementById('tags');
 const profileEl = document.getElementById('profile');
+const rawJson = document.getElementById('rawJson');
 
 let selectedFile = null;
 let originalImage = null;
@@ -18,15 +19,13 @@ let originalImage = null;
 function refreshScanEnabled() {
     const ready = Boolean(selectedFile) && Boolean(apiKeyInput.value.trim());
     scanBtn.disabled = !ready;
-    scanBtn.style.opacity = ready ? '1' : '0.5';
-    scanBtn.style.cursor = ready ? 'pointer' : 'not-allowed';
 }
 
 apiKeyInput.addEventListener('input', refreshScanEnabled);
 
 fileInput.addEventListener('change', (e) => {
-    selectedFile = e.target.files[0];
-
+    selectedFile = e.target.files[0] || null;
+    originalImage = null;
     if (selectedFile) {
         const reader = new FileReader();
         reader.onload = (ev) => {
@@ -34,22 +33,13 @@ fileInput.addEventListener('change', (e) => {
             originalImage.src = ev.target.result;
         };
         reader.readAsDataURL(selectedFile);
-    } else {
-        originalImage = null;
     }
     refreshScanEnabled();
 });
 
 scanBtn.addEventListener('click', async () => {
     const apiKey = apiKeyInput.value.trim();
-    if (!apiKey) {
-        alert('Enter your API key');
-        return;
-    }
-    if (!selectedFile) {
-        alert('Please select an image first');
-        return;
-    }
+    if (!apiKey || !selectedFile) return;
 
     error.style.display = 'none';
     results.classList.remove('active');
@@ -62,9 +52,7 @@ scanBtn.addEventListener('click', async () => {
 
         const response = await fetch(`${API_URL}/scan`, {
             method: 'POST',
-            headers: {
-                'X-API-Key': apiKey,
-            },
+            headers: { 'X-API-Key': apiKey },
             body: formData,
         });
 
@@ -90,20 +78,17 @@ scanBtn.addEventListener('click', async () => {
 
 function displayResults(data) {
     const profile = data.profile || {};
-    profileEl.textContent = `Skin type: ${(profile.skin_type || 'unknown')} · Models: ${(profile.models_used || []).join(', ') || 'cv-only'} · Top: ${(profile.top_issues || []).join(', ') || 'none'}`;
+    profileEl.textContent = `Skin type: ${profile.skin_type || 'unknown'} · Models: ${(profile.models_used || []).join(', ') || 'cv-only'} · Top: ${(profile.top_issues || []).join(', ') || 'none'}`;
 
     issuesContainer.innerHTML = '';
     const issues = data.issues || [];
-    if (issues.length === 0) {
-        issuesContainer.innerHTML = '<p>No major issues flagged.</p>';
+    if (!issues.length) {
+        issuesContainer.innerHTML = '<p style="color:#9aa8bc">No major issues flagged.</p>';
     } else {
         for (const issue of issues) {
             const card = document.createElement('div');
-            card.className = `issue-card ${issue.severity}`;
-            card.innerHTML = `
-                <h4>${issue.label} · ${issue.severity.toUpperCase()} · ${(issue.score * 100).toFixed(0)}%</h4>
-                <p>${issue.summary}</p>
-            `;
+            card.className = `issue ${issue.severity}`;
+            card.innerHTML = `<h4>${issue.label} · ${String(issue.severity).toUpperCase()} · ${(issue.score * 100).toFixed(0)}%</h4><p>${issue.summary}</p><p>${(issue.tags || []).join(', ')}</p>`;
             issuesContainer.appendChild(card);
         }
     }
@@ -117,51 +102,52 @@ function displayResults(data) {
     }
 
     scoresContainer.innerHTML = '';
-    for (const [category, score] of Object.entries(data.scores)) {
+    for (const [category, score] of Object.entries(data.scores || {})) {
         const card = document.createElement('div');
-        card.className = 'score-card';
-        card.innerHTML = `
-            <h3>${category}</h3>
-            <div class="score-value">${(score * 100).toFixed(0)}%</div>
-        `;
+        card.className = 'score';
+        card.innerHTML = `<h3>${category}</h3><div class="v">${(score * 100).toFixed(0)}%</div>`;
         scoresContainer.appendChild(card);
     }
 
     overlaysContainer.innerHTML = '';
-    for (const [category, overlayDataURL] of Object.entries(data.overlays)) {
+    for (const [category, overlayDataURL] of Object.entries(data.overlays || {})) {
         const card = document.createElement('div');
         card.className = 'overlay-card';
-
         const title = document.createElement('h4');
         title.textContent = category;
         card.appendChild(title);
 
-        const canvasContainer = document.createElement('div');
-        canvasContainer.className = 'canvas-container';
-
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        const overlay = new Image();
-        overlay.onload = () => {
-            if (originalImage && originalImage.complete) {
-                canvas.width = originalImage.width;
-                canvas.height = originalImage.height;
-                ctx.drawImage(originalImage, 0, 0);
-                ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+        if (category === 'acne_boxes' || String(overlayDataURL).startsWith('data:image')) {
+            if (category === 'acne_boxes') {
+                const img = document.createElement('img');
+                img.alt = category;
+                img.src = overlayDataURL;
+                card.appendChild(img);
             } else {
-                canvas.width = overlay.width;
-                canvas.height = overlay.height;
-                ctx.drawImage(overlay, 0, 0);
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const overlay = new Image();
+                overlay.onload = () => {
+                    if (originalImage && originalImage.complete) {
+                        canvas.width = originalImage.width;
+                        canvas.height = originalImage.height;
+                        ctx.drawImage(originalImage, 0, 0);
+                        ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+                    } else {
+                        canvas.width = overlay.width;
+                        canvas.height = overlay.height;
+                        ctx.drawImage(overlay, 0, 0);
+                    }
+                };
+                overlay.src = overlayDataURL;
+                card.appendChild(canvas);
             }
-        };
-        overlay.src = overlayDataURL;
-
-        canvasContainer.appendChild(canvas);
-        card.appendChild(canvasContainer);
+        }
         overlaysContainer.appendChild(card);
     }
 
+    const slim = { ...data, overlays: Object.fromEntries(Object.keys(data.overlays || {}).map((k) => [k, `[png ${k}]`])) };
+    rawJson.textContent = JSON.stringify(slim, null, 2);
     results.classList.add('active');
 }
 

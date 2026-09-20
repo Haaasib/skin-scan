@@ -2,10 +2,12 @@
 import logging
 import secrets
 from pathlib import Path
-from fastapi import Depends, FastAPI, Header, UploadFile, File, HTTPException
+
+from fastapi import Depends, FastAPI, Header, UploadFile, File, HTTPException, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from .deps import get_settings, setup_logging, CORS_ORIGINS
 from .schemas import ScanResponse, HealthResponse
@@ -16,10 +18,43 @@ settings = get_settings()
 setup_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
+API_DESCRIPTION = """
+## Skin Scan API
+
+Upload a face image with header `X-API-Key` and receive full analysis:
+
+- **scores** — every metric 0–1
+- **issues** — prioritized concerns + severity
+- **concern_tags** — match these to your cream/product ingredients
+- **overlays** — base64 PNG heatmaps
+- **detections** — acne lesion boxes
+- **profile** — skin type + top issues
+
+### Auth
+Set `API_KEY` in server env. Click **Authorize** in Swagger and paste the key, or send:
+
+`X-API-Key: your-secret`
+
+### Visual result viewer
+Open [`/playground`](/playground) to upload an image and see heatmaps + concerns rendered.
+
+### curl
+```bash
+curl -X POST "$HOST/scan" \\
+  -H "X-API-Key: YOUR_KEY" \\
+  -F "image=@face.jpg"
+```
+"""
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
 app = FastAPI(
-    title="Skin Scan OSS",
-    description="Production-grade skin analysis API",
-    version="0.1.0",
+    title="Skin Scan API",
+    description=API_DESCRIPTION,
+    version="0.2.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    swagger_ui_parameters={"persistAuthorization": True},
 )
 
 app.add_middleware(
@@ -32,7 +67,7 @@ app.add_middleware(
 
 
 def require_api_key(
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    x_api_key: str | None = Security(api_key_header),
     authorization: str | None = Header(default=None),
 ) -> None:
     expected = (settings.api_key or "").strip()
@@ -52,9 +87,9 @@ def require_api_key(
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health", response_model=HealthResponse, tags=["system"])
 async def health():
-    """Health check endpoint."""
+    """Public health check (no API key)."""
     from ..ml.glowlytics import get_engine
     from ..ml.vit_panel import get_vit_panel
 
@@ -73,12 +108,23 @@ async def health():
     }
 
 
-@app.post("/scan", response_model=ScanResponse)
+@app.post(
+    "/scan",
+    response_model=ScanResponse,
+    tags=["scan"],
+    summary="Full skin scan",
+    response_description="Scores, issues, concern tags, heatmaps, detections",
+)
 async def scan(
-    image: UploadFile = File(...),
+    image: UploadFile = File(..., description="Face image (jpg/png/webp)"),
     _: None = Depends(require_api_key),
 ):
-    """Analyze uploaded facial image and return skin analysis results."""
+    """
+    Run the full multi-model skin pipeline.
+
+    Returns heatmaps in `overlays` as `data:image/png;base64,...` plus
+    `issues` / `concern_tags` for product recommendation.
+    """
     try:
         image_data = await image.read()
         logger.info(f"Received image: {image.filename}, size: {len(image_data)} bytes")
@@ -94,7 +140,6 @@ async def scan(
 
         result = run_scan(img_bgr)
         logger.info(f"Scan complete. Scores: {result['scores']}")
-
         return result
 
     except ValueError as e:
@@ -109,14 +154,18 @@ async def scan(
         raise HTTPException(status_code=500, detail="Internal server error during scan")
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def root():
-    """Serve the demo web UI."""
+    return RedirectResponse(url="/docs", status_code=307)
+
+
+@app.get("/playground", include_in_schema=False)
+async def playground():
     web_dir = Path(__file__).parent.parent.parent / "web"
-    index_file = web_dir / "client.html"
+    index_file = web_dir / "docs.html"
     if index_file.exists():
         return FileResponse(index_file)
-    return {"message": "Skin Scan API is running. Visit /docs for API documentation."}
+    return RedirectResponse(url="/docs", status_code=307)
 
 
 try:
@@ -129,7 +178,6 @@ except Exception as e:
 
 @app.on_event("startup")
 async def startup_event():
-    """Log startup and warm ML models."""
     logger.info(f"Starting Skin Scan API in {settings.env} mode")
     if not (settings.api_key or "").strip():
         logger.warning("API_KEY is empty — /scan will reject all requests")
@@ -143,5 +191,4 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Log shutdown."""
     logger.info("Shutting down Skin Scan API")

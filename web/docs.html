@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skin Scan API — Docs Viewer</title>
+    <style>
+        :root {
+            --bg: #0f1419;
+            --panel: #1a2332;
+            --line: #2a3548;
+            --text: #e7ecf3;
+            --muted: #9aa8bc;
+            --accent: #3b82f6;
+            --ok: #22c55e;
+            --warn: #f59e0b;
+            --bad: #ef4444;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Segoe UI", system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        header {
+            border-bottom: 1px solid var(--line);
+            padding: 18px 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--panel);
+        }
+        header h1 { font-size: 1.15rem; font-weight: 650; }
+        header nav { display: flex; gap: 10px; flex-wrap: wrap; }
+        header a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.92rem;
+            border: 1px solid var(--line);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        header a:hover { background: #243044; }
+        main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 18px;
+        }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 18px;
+        }
+        .card h2 { font-size: 1rem; margin-bottom: 12px; }
+        .card p, .card li { color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
+        .card ul { margin: 8px 0 0 18px; }
+        label { display: block; font-size: 0.85rem; color: var(--muted); margin: 10px 0 6px; }
+        input[type="password"], input[type="file"] {
+            width: 100%;
+            background: #0f1724;
+            border: 1px solid var(--line);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        button {
+            margin-top: 14px;
+            width: 100%;
+            border: 0;
+            border-radius: 10px;
+            background: var(--accent);
+            color: white;
+            font-weight: 650;
+            padding: 12px;
+            cursor: pointer;
+        }
+        button:disabled { opacity: 0.45; cursor: not-allowed; }
+        .error {
+            display: none;
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(239,68,68,0.15);
+            color: #fecaca;
+            border: 1px solid rgba(239,68,68,0.35);
+        }
+        .loading { display: none; margin-top: 12px; color: var(--muted); }
+        #results { display: none; margin-top: 22px; }
+        #results.active { display: block; }
+        .profile {
+            margin-bottom: 14px;
+            padding: 12px;
+            border-radius: 10px;
+            background: #132033;
+            border: 1px solid var(--line);
+        }
+        .issues { display: grid; gap: 10px; margin: 12px 0 18px; }
+        .issue {
+            border-left: 4px solid var(--warn);
+            background: #162033;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .issue.high { border-left-color: var(--bad); }
+        .issue.medium { border-left-color: var(--warn); }
+        .issue.low { border-left-color: var(--ok); }
+        .issue h4 { margin-bottom: 4px; }
+        .issue p { color: var(--muted); font-size: 0.9rem; }
+        .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+        .tag {
+            background: #1e3a5f;
+            color: #bfdbfe;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+        }
+        .scores {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .score {
+            background: #132033;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .score h3 {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: capitalize;
+            margin-bottom: 6px;
+        }
+        .score .v { font-size: 1.4rem; font-weight: 700; }
+        .overlays {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+        }
+        .overlay-card {
+            background: #132033;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+        .overlay-card h4 {
+            text-transform: capitalize;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            color: var(--muted);
+        }
+        .overlay-card img, .overlay-card canvas {
+            max-width: 100%;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+        }
+        code {
+            background: #0f1724;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #93c5fd;
+            font-size: 0.85rem;
+        }
+        pre {
+            background: #0f1724;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 12px;
+            overflow: auto;
+            color: #cbd5e1;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Skin Scan API — Result Viewer</h1>
+    <nav>
+        <a href="/docs">Swagger Docs</a>
+        <a href="/redoc">ReDoc</a>
+        <a href="/health">Health</a>
+    </nav>
+</header>
+<main>
+    <div class="grid">
+        <section class="card">
+            <h2>Try POST /scan</h2>
+            <p>Enter your <code>API_KEY</code>, upload a face image, then view scores, concerns, tags, and heatmaps.</p>
+            <label for="apiKeyInput">X-API-Key</label>
+            <input id="apiKeyInput" type="password" placeholder="Paste API key" autocomplete="off">
+            <label for="fileInput">Face image</label>
+            <input id="fileInput" type="file" accept="image/*">
+            <button id="scanBtn" disabled>Run full scan</button>
+            <div id="loading" class="loading">Analyzing with full model stack…</div>
+            <div id="error" class="error"></div>
+        </section>
+        <section class="card">
+            <h2>How to call from your site</h2>
+            <ul>
+                <li>Header: <code>X-API-Key: YOUR_KEY</code></li>
+                <li>Body: multipart field <code>image</code></li>
+                <li>Use <code>issues</code> + <code>concern_tags</code> to suggest creams</li>
+                <li>Render <code>overlays.*.data:image/png;base64,...</code> as images</li>
+            </ul>
+            <pre>curl -X POST "/scan" \
+  -H "X-API-Key: YOUR_KEY" \
+  -F "image=@face.jpg"</pre>
+        </section>
+    </div>
+
+    <section id="results">
+        <div class="card" style="margin-top:18px;">
+            <h2>Profile</h2>
+            <div id="profile" class="profile"></div>
+
+            <h2>Priority issues</h2>
+            <div id="issues" class="issues"></div>
+
+            <h2>Concern tags (product match)</h2>
+            <div id="tags" class="tags"></div>
+
+            <h2>All scores</h2>
+            <div id="scores" class="scores"></div>
+
+            <h2>Heatmaps & detections</h2>
+            <div id="overlays" class="overlays"></div>
+
+            <h2>Raw JSON</h2>
+            <pre id="rawJson"></pre>
+        </div>
+    </section>
+</main>
+<script src="/static/demo.js"></script>
+</body>
+</html>
